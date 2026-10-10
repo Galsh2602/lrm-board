@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<title>LRM (Live Road Map)</title>
+<style>
+:root{--ph:#7fe3c4;--ph-rgb:127,227,196;--ok:#6fdc8c;--bad:#ff6b6b;--warn:#ffc857;--bg:#0a0f13;--fg:#d5e1de}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:Consolas,"SF Mono",Menlo,monospace;font-size:14px;line-height:1.45}
+body{padding:12px;max-width:980px;margin:0 auto}
+a{color:var(--ph)}
+.sn-stack{display:flex;flex-direction:column;gap:12px}
+.sn-row-flex{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.sn-panel{border:1px solid rgba(var(--ph-rgb),.28);border-radius:6px;padding:12px;background:rgba(var(--ph-rgb),.04)}
+.sn-sect{font-size:12px;letter-spacing:.08em;color:var(--ph);border-bottom:1px solid rgba(var(--ph-rgb),.25);padding-bottom:4px}
+.sn-list{display:flex;flex-direction:column}
+.sn-item{padding:6px 0;border-bottom:1px solid rgba(var(--ph-rgb),.1)}
+.sn-item:last-child{border-bottom:0}
+.sn-stats{display:flex;flex-wrap:wrap;gap:8px}
+.sn-stat{flex:1;min-width:110px;border:1px solid rgba(var(--ph-rgb),.2);border-radius:4px;padding:8px 10px}
+.sn-stat b{display:block;font-size:24px;line-height:1.1}
+.sn-stat span{font-size:11px;letter-spacing:.08em;opacity:.7}
+.sn-badge{display:inline-block;font-size:11px;letter-spacing:.06em;border:1px solid rgba(var(--ph-rgb),.4);border-radius:3px;padding:1px 6px;white-space:nowrap}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%}
+.dot.bad{background:var(--bad)}
+.sn-title{font-size:17px;font-weight:700;color:var(--ph);letter-spacing:.04em}
+.sn-label{font-size:11px;letter-spacing:.08em;opacity:.85}
+.sn-hint{opacity:.85;font-size:13px}
+.sn-muted{opacity:.55;font-size:12px}
+.sn-btn{font:inherit;color:var(--ph);background:transparent;border:1px solid rgba(var(--ph-rgb),.5);border-radius:4px;padding:6px 12px;cursor:pointer}
+.sn-btn.primary{background:rgba(var(--ph-rgb),.18)}
+.sn-input{font:inherit;color:var(--fg);background:rgba(0,0,0,.35);border:1px solid rgba(var(--ph-rgb),.35);border-radius:4px;padding:6px 8px}
+.sn-tabs{display:flex;flex-wrap:wrap;gap:6px}
+.sn-tab{font:inherit;font-size:12px;color:var(--fg);background:transparent;border:1px solid rgba(var(--ph-rgb),.25);border-radius:4px;padding:5px 10px;cursor:pointer}
+.sn-tab.on{color:var(--ph);border-color:var(--ph);background:rgba(var(--ph-rgb),.14)}
+.sn-empty,.sn-loading{padding:24px 12px;text-align:center;opacity:.7}
+.sn-error{border:1px solid var(--bad);color:var(--bad);border-radius:4px;padding:8px 10px}
+.lrm-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 14px}
+.lrm-name{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.lrm-dot{width:8px;height:8px;border-radius:50%;background:currentColor;display:inline-block;flex:none;margin-top:7px}
+.st-done,.st-on_track{color:var(--ok)}
+.st-in_progress{color:var(--ph)}
+.st-stuck{color:var(--bad)}
+.st-waiting{color:var(--warn)}
+.st-next{color:var(--ph);opacity:.65}
+.st-planned,.st-paused{opacity:.55}
+.lrm-b{border-color:currentColor}
+.lrm-bar{display:flex;height:6px;border-radius:3px;overflow:hidden;background:rgba(var(--ph-rgb),.14)}
+.lrm-bar i{display:block;height:100%}
+.lrm-bar .d{background:var(--ok)}
+.lrm-bar .p{background:var(--ph)}
+.lrm-bar .s{background:var(--bad)}
+.lrm-bar .w{background:var(--warn)}
+.lrm-now{padding:8px 10px;border-left:3px solid var(--ph);background:rgba(var(--ph-rgb),.08)}
+.lrm-f{display:flex;gap:8px;align-items:flex-start}
+.lrm-fb{flex:1;min-width:0;overflow-wrap:anywhere}
+.lrm-fb b{font-weight:600}
+.lrm-why{margin-top:2px;overflow-wrap:anywhere}
+.lrm-att{border-left:3px solid var(--bad);padding:6px 10px;background:rgba(var(--ph-rgb),.06)}
+.lrm-att.w{border-left-color:var(--warn)}
+details.lrm-d>summary{cursor:pointer;list-style:none;padding:4px 0}
+details.lrm-d>summary::-webkit-details-marker{display:none}
+details.lrm-d>summary:before{content:"+ "}
+details.lrm-d[open]>summary:before{content:"- "}
+.lrm-links a{margin-right:12px}
+</style>
+</head>
+<body>
+<div class="sn-stack">
+  <div id="root" class="sn-stack"><div class="sn-loading">Reading the road map</div></div>
+  <div class="sn-muted">Read-only web copy. Agents report on the home PC; this page mirrors what was last published from there.</div>
+</div>
+
+<script>
+(function () {
+  var S = { projects: [], errors: [], meta: null, filter: 'all', open: {}, loaded: false, err: '' };
+  var root = document.getElementById('root');
+  var KEY = '';
+
+  var ENT = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return ENT[c]; }); }
+  function key(s) { return String(s || '').toLowerCase().trim().replace(/[\s-]+/g, '_'); }
+  function lsGet(k) { try { return window.localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { window.localStorage.setItem(k, v); } catch (e) {} }
+
+  var FMAP = { done: 'done', complete: 'done', completed: 'done', shipped: 'done',
+    in_progress: 'in_progress', active: 'in_progress', doing: 'in_progress', wip: 'in_progress', in_development: 'in_progress',
+    stuck: 'stuck', blocked: 'stuck', failed: 'stuck',
+    waiting: 'waiting', needs_input: 'waiting', needs_decision: 'waiting', on_hold: 'waiting',
+    next: 'next', up_next: 'next',
+    planned: 'planned', todo: 'planned', backlog: 'planned', later: 'planned' };
+  var PMAP = { on_track: 'on_track', active: 'on_track', in_progress: 'on_track', ok: 'on_track',
+    stuck: 'stuck', blocked: 'stuck', waiting: 'waiting', paused: 'paused', idle: 'paused', done: 'done', complete: 'done', shipped: 'done' };
+  var FLABEL = { done: 'DONE', in_progress: 'IN DEVELOPMENT', stuck: 'STUCK', waiting: 'WAITING ON YOU', next: 'NEXT', planned: 'PLANNED' };
+  var PLABEL = { on_track: 'ON TRACK', stuck: 'STUCK', waiting: 'WAITING ON YOU', paused: 'PAUSED', done: 'DONE' };
+  var PORDER = { stuck: 0, waiting: 1, on_track: 2, paused: 3, done: 4 };
+
+  function toMs(v) {
+    if (v == null || v === '') return NaN;
+    if (typeof v === 'number') return v;
+    var t = Date.parse(v);
+    return isNaN(t) ? NaN : t;
+  }
+  function ago(v) {
+    var t = toMs(v);
+    if (isNaN(t)) return '';
+    var d = Math.max(0, Date.now() - t), m = Math.floor(d / 60000);
+    if (m < 1) return 'just now';
+    if (m < 60) return m + 'm ago';
+    var h = Math.floor(m / 60);
+    if (h < 48) return h + 'h ago';
+    return Math.floor(h / 24) + 'd ago';
+  }
+
+  function prep(p) {
+    var feats = (Array.isArray(p.features) ? p.features : []).map(function (f) {
+      f = (f && typeof f === 'object') ? f : { name: String(f) };
+      return { id: f.id, name: f.name || f.title || f.id || 'Unnamed', st: FMAP[key(f.state || f.status)] || 'planned',
+        note: f.note || f.detail || '', why: f.why || f.blocker || f.reason || '', needs: f.needs || '', group: f.group || '' };
+    });
+    var blockers = (Array.isArray(p.blockers) ? p.blockers : []).map(function (b) {
+      b = (b && typeof b === 'object') ? b : { what: String(b) };
+      return { what: b.what || b.name || 'Blocker', why: b.why || b.reason || '', needs: b.needs || '',
+        st: FMAP[key(b.state)] === 'waiting' ? 'waiting' : 'stuck', since: b.since || '' };
+    });
+    var c = { done: 0, in_progress: 0, stuck: 0, waiting: 0, next: 0, planned: 0 };
+    feats.forEach(function (f) { c[f.st]++; });
+    var att = [];
+    feats.forEach(function (f) { if (f.st === 'stuck' || f.st === 'waiting') att.push({ what: f.name, id: f.id, why: f.why, needs: f.needs, st: f.st }); });
+    blockers.forEach(function (b) { att.push(b); });
+    var status = PMAP[key(p.status)];
+    if (!status) status = c.stuck ? 'stuck' : (c.waiting ? 'waiting' : (c.in_progress ? 'on_track' : (feats.length && c.done === feats.length ? 'done' : 'paused')));
+    var t = toMs(p.updatedAt);
+    var stale = !isNaN(t) && status !== 'done' && (Date.now() - t) > 24 * 3600000;
+    return { raw: p, feats: feats, att: att, c: c, status: status, stale: stale, pid: String(p.id || p.name || '') };
+  }
+
+  function attRow(a, projName) {
+    var h = '<div class="lrm-att' + (a.st === 'waiting' ? ' w' : '') + '">';
+    h += '<div><span class="sn-badge lrm-b st-' + a.st + '">' + FLABEL[a.st] + '</span> ';
+    if (projName) h += '<span class="sn-muted">' + esc(projName) + ' &middot; </span>';
+    h += '<b>' + esc(a.what) + '</b>' + (a.id ? ' <span class="sn-muted">' + esc(a.id) + '</span>' : '') + '</div>';
+    h += '<div class="lrm-why"><span class="sn-label">WHY</span> ' + (a.why ? esc(a.why) : '<span class="sn-muted">the agent gave no reason</span>') + '</div>';
+    if (a.needs) h += '<div class="lrm-why"><span class="sn-label">NEEDS</span> ' + esc(a.needs) + '</div>';
+    if (a.since) h += '<div class="sn-muted">since ' + esc(a.since) + '</div>';
+    return h + '</div>';
+  }
+
+  function featRow(f) {
+    var h = '<div class="sn-item lrm-f"><span class="lrm-dot st-' + f.st + '"></span><div class="lrm-fb">';
+    h += '<div><b>' + esc(f.name) + '</b>' + (f.id && f.id !== f.name ? ' <span class="sn-muted">' + esc(f.id) + '</span>' : '') + '</div>';
+    if (f.note) h += '<div class="sn-hint">' + esc(f.note) + '</div>';
+    return h + '</div></div>';
+  }
+
+  function section(P, st, title, collapsible) {
+    var list = P.feats.filter(function (f) { return f.st === st; });
+    if (!list.length) return '';
+    var body = '<div class="sn-list">' + list.map(featRow).join('') + '</div>';
+    if (!collapsible) return '<div class="sn-stack"><div class="sn-label st-' + st + '">' + title + ' &middot; ' + list.length + '</div>' + body + '</div>';
+    var k = P.pid + '|' + st;
+    return '<details class="lrm-d" data-k="' + esc(k) + '"' + (S.open[k] ? ' open' : '') + '><summary class="sn-label st-' + st + '">' + title + ' &middot; ' + list.length + '</summary>' + body + '</details>';
+  }
+
+  function card(P) {
+    var p = P.raw, n = P.feats.length, c = P.c;
+    var h = '<div class="sn-panel sn-stack">';
+    h += '<div class="lrm-head"><div class="lrm-name"><span class="sn-title">' + esc(p.name || p.id) + '</span>';
+    h += '<span class="sn-badge lrm-b st-' + P.status + '">' + PLABEL[P.status] + '</span>';
+    if (P.stale) h += '<span class="sn-badge lrm-b st-waiting">NO UPDATE IN 24H+</span>';
+    h += '</div><div class="sn-muted">' + (ago(p.updatedAt) ? 'project updated ' + ago(p.updatedAt) : 'no update time given') + '</div></div>';
+    if (p.summary) h += '<div class="sn-hint">' + esc(p.summary) + '</div>';
+    if (p.statusNote) h += '<div class="sn-hint">' + esc(p.statusNote) + '</div>';
+    h += '<div class="lrm-now"><span class="sn-label">NOW IN DEVELOPMENT</span><div>' + (p.now ? esc(p.now) : '<span class="sn-muted">nothing reported</span>') + '</div>';
+    if (p.next) h += '<div class="sn-muted">Next: ' + esc(p.next) + '</div>';
+    h += '</div>';
+    var meta = [];
+    if (p.phase) meta.push('Phase: ' + esc(p.phase));
+    if (p.agent) meta.push('Agent: ' + esc(p.agent));
+    if (meta.length) h += '<div class="sn-hint">' + meta.join(' &middot; ') + '</div>';
+    if (n) {
+      var w = function (x) { return (100 * x / n).toFixed(2) + '%'; };
+      h += '<div><div class="lrm-bar"><i class="d" style="width:' + w(c.done) + '"></i><i class="p" style="width:' + w(c.in_progress) + '"></i><i class="s" style="width:' + w(c.stuck) + '"></i><i class="w" style="width:' + w(c.waiting) + '"></i></div>';
+      h += '<div class="sn-muted">' + c.done + ' of ' + n + ' listed features done</div></div>';
+    }
+    if (P.att.length) h += '<div class="sn-stack">' + P.att.map(function (a) { return attRow(a, ''); }).join('') + '</div>';
+    h += section(P, 'in_progress', 'IN DEVELOPMENT', false);
+    h += section(P, 'next', 'NEXT', false);
+    h += section(P, 'planned', 'PLANNED', true);
+    h += section(P, 'done', 'DONE', true);
+    var links = (Array.isArray(p.links) ? p.links : []).filter(function (l) { return l && /^https?:\/\//i.test(String(l.url || '')); });
+    if (links.length) h += '<div class="lrm-links">' + links.map(function (l) { return '<a rel="noopener noreferrer" target="_blank" href="' + esc(l.url) + '">' + esc(l.label || l.url) + '</a>'; }).join('') + '</div>';
+    if (p.source) h += '<div class="sn-muted">Source: ' + esc(p.source) + '</div>';
+    return h + '</div>';
+  }
+
+  function render() {
+    if (!S.loaded) return;
+    var all = S.projects.filter(function (p) { return p && typeof p === 'object'; }).map(prep);
+    all.sort(function (a, b) { return (PORDER[a.status] - PORDER[b.status]) || String(a.raw.name || '').localeCompare(String(b.raw.name || '')); });
+    var tot = { dev: 0, stuck: 0, wait: 0 };
+    all.forEach(function (P) {
+      tot.dev += P.c.in_progress;
+      P.att.forEach(function (a) { if (a.st === 'waiting') tot.wait++; else tot.stuck++; });
+    });
+    var h = '<div class="sn-panel sn-stack"><div class="lrm-head"><div class="sn-title">LIVE ROAD MAP</div>';
+    var up = S.meta && S.meta.updatedAt ? ago(S.meta.updatedAt) : '';
+    h += '<div class="sn-muted">' + (up ? 'published from the home PC ' + up : 'not published yet') + '</div></div>';
+    h += '<div class="sn-stats">';
+    h += '<div class="sn-stat"><b>' + all.length + '</b><span>PROJECTS</span></div>';
+    h += '<div class="sn-stat"><b class="st-in_progress">' + tot.dev + '</b><span>IN DEVELOPMENT</span></div>';
+    h += '<div class="sn-stat"><b class="' + (tot.stuck ? 'st-stuck' : '') + '">' + tot.stuck + '</b><span>STUCK</span></div>';
+    h += '<div class="sn-stat"><b class="' + (tot.wait ? 'st-waiting' : '') + '">' + tot.wait + '</b><span>WAITING ON YOU</span></div>';
+    h += '</div>';
+    var tabs = [['all', 'ALL'], ['attention', 'STUCK / WAITING'], ['active', 'IN DEVELOPMENT']];
+    h += '<div class="sn-tabs">' + tabs.map(function (t) { return '<button class="sn-tab' + (S.filter === t[0] ? ' on' : '') + '" data-f="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div></div>';
+    if (S.err) h += '<div class="sn-error">' + esc(S.err) + '</div>';
+    if (S.errors.length) {
+      h += '<div class="sn-panel sn-stack"><div class="sn-sect">FILES THE BOARD COULD NOT READ</div><div class="sn-list">';
+      h += S.errors.map(function (e) { return '<div class="sn-item"><span class="dot bad"></span> <b>' + esc(e && e.file) + '</b> <span class="sn-hint">' + esc(e && e.error) + '</span></div>'; }).join('');
+      h += '</div></div>';
+    }
+    var shown = all.filter(function (P) {
+      if (S.filter === 'attention') return P.att.length || P.status === 'stuck' || P.status === 'waiting';
+      if (S.filter === 'active') return P.c.in_progress > 0;
+      return true;
+    });
+    if (!all.length) h += '<div class="sn-empty">No projects on the board yet.</div>';
+    else if (!shown.length) h += '<div class="sn-empty">Nothing matches this filter.</div>';
+    else h += shown.map(card).join('');
+    root.innerHTML = h;
+  }
+
+  root.addEventListener('click', function (ev) {
+    var t = ev.target;
+    if (t && t.getAttribute && t.getAttribute('data-f')) {
+      S.filter = t.getAttribute('data-f');
+      render();
+      lsSet('lrm-filter', S.filter);
+    }
+    if (t && t.id === 'keygo') {
+      var v = String(document.getElementById('keyin').value || '').trim();
+      var i = v.indexOf('#');
+      if (i >= 0) v = v.slice(i + 1);
+      if (v) { KEY = v; load(true); }
+    }
+  });
+  document.addEventListener('toggle', function (ev) {
+    var t = ev.target;
+    if (t && t.getAttribute && t.getAttribute('data-k')) S.open[t.getAttribute('data-k')] = t.open;
+  }, true);
+
+  /* ---- encrypted data: AES-256-GCM, key carried in the link after # (never sent to the server) ---- */
+  function b64(s) {
+    s = String(s).replace(/-/g, '+').replace(/_/g, '/');
+    while (s.length % 4) s += '=';
+    var b = atob(s), u = new Uint8Array(b.length);
+    for (var i = 0; i < b.length; i++) u[i] = b.charCodeAt(i);
+    return u;
+  }
+  async function decrypt(box, keyText) {
+    var k = await crypto.subtle.importKey('raw', b64(keyText), { name: 'AES-GCM' }, false, ['decrypt']);
+    var buf = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(box.iv) }, k, b64(box.ct));
+    return JSON.parse(new TextDecoder().decode(buf));
+  }
+  function askKey(msg) {
+    root.innerHTML = '<div class="sn-panel sn-stack"><div class="sn-title">LIVE ROAD MAP</div>' +
+      (msg ? '<div class="sn-error">' + esc(msg) + '</div>' : '') +
+      '<div class="sn-hint">This board is locked. Open it with your full private link, or paste the link (or just its key) here.</div>' +
+      '<div class="sn-row-flex"><input id="keyin" class="sn-input" style="flex:1;min-width:180px" placeholder="Private link or key" autocomplete="off">' +
+      '<button id="keygo" class="sn-btn primary">OPEN</button></div></div>';
+  }
+
+  async function load(first) {
+    if (!KEY) { askKey(''); return; }
+    var box;
+    try {
+      var r = await fetch('data.json?t=' + Date.now(), { cache: 'no-store' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      box = await r.json();
+    } catch (x) {
+      if (S.loaded) { S.err = 'Could not reach the board data just now (' + (x && x.message ? x.message : x) + '). Showing the last copy.'; render(); }
+      else root.innerHTML = '<div class="sn-error">Could not load the board data: ' + esc(x && x.message ? x.message : x) + '</div>';
+      return;
+    }
+    var data;
+    try { data = await decrypt(box, KEY); }
+    catch (x) {
+      if (!S.loaded || first) { KEY = ''; S.loaded = false; askKey('That key did not open the board.'); }
+      return;
+    }
+    lsSet('lrm-key', KEY);
+    S.projects = Array.isArray(data.projects) ? data.projects : [];
+    S.errors = Array.isArray(data.errors) ? data.errors : [];
+    S.meta = data.meta || null;
+    S.err = '';
+    S.loaded = true;
+    render();
+  }
+
+  (function init() {
+    var f = lsGet('lrm-filter');
+    if (f === 'all' || f === 'attention' || f === 'active') S.filter = f;
+    var h = String(window.location.hash || '').replace(/^#/, '').trim();
+    KEY = h || lsGet('lrm-key') || '';
+    load(true);
+    setInterval(render, 60000);
+    setInterval(function () { if (KEY && S.loaded) load(false); }, 5 * 60000);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden && KEY && S.loaded) load(false); });
+  })();
+})();
+</script>
+</body>
+</html>
